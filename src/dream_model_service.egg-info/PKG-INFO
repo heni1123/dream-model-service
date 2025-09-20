@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: dream-model-service
+Version: 0.1.0
+Requires-Python: >=3.10
+Requires-Dist: fastapi>=0.111
+Requires-Dist: uvicorn[standard]>=0.30
+Requires-Dist: pydantic>=2.7
+Requires-Dist: python-dotenv>=1.0
+Requires-Dist: openai>=1.40
+Requires-Dist: jsonschema>=4.23
+Requires-Dist: httpx>=0.27
+Requires-Dist: faiss-cpu>=1.7.4

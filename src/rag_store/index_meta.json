@@ -1,0 +1,34 @@
+[
+  {
+    "id": "sym_0",
+    "text": "eau — rivières, mer, inondations → débordement émotionnel",
+    "symbol": "eau",
+    "meanings": ["émotions", "inconscient", "changement"],
+    "notes": "rivières, mer, inondations → débordement émotionnel",
+    "source": "symbols.jsonl"
+  },
+  {
+    "id": "sym_1",
+    "text": "dents — tomber des dents → honte/peur du jugement",
+    "symbol": "dents",
+    "meanings": ["perte de contrôle", "image de soi", "anxiété"],
+    "notes": "tomber des dents → honte/peur du jugement",
+    "source": "symbols.jsonl"
+  },
+  {
+    "id": "th_0",
+    "text": "Inondation : débordement émotionnel, surcharge, transitions rapides. Eau trouble = confusion; eau claire = clarté.",
+    "symbol": null,
+    "meanings": [],
+    "notes": null,
+    "source": "themes.md"
+  },
+  {
+    "id": "th_1",
+    "text": "Poursuite : évitement d’un problème, stress prolongé, surcharge cognitive.",
+    "symbol": null,
+    "meanings": [],
+    "notes": null,
+    "source": "themes.md"
+  }
+]

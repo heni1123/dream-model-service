@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DreamAI – Playground</title>
+  <style>
+    :root{--bg:#0f1115;--panel:#171a21;--text:#e8e8ea;--muted:#98a2b3;--accent:#4f8cff;}
+    html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:1000px;margin:28px auto;padding:0 16px}
+    .card{background:var(--panel);border-radius:12px;padding:18px 20px;margin-bottom:18px;border:1px solid #22252e}
+    textarea{width:100%;min-height:180px;background:#0c0f14;color:var(--text);border:1px solid #262b36;border-radius:8px;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace}
+    select,input[type="checkbox"]{margin-right:10px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    button{background:var(--accent);border:0;color:white;padding:10px 14px;border-radius:10px;cursor:pointer}
+    button[disabled]{opacity:.6;cursor:wait}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .pill{display:inline-block;background:#111520;border:1px solid #2a3040;color:#d5d9e3;padding:6px 10px;border-radius:999px;margin:4px 6px 0 0;font-size:13px}
+    .muted{color:var(--muted);font-size:13px}
+    pre{white-space:pre-wrap;word-wrap:break-word}
+    h1{margin:0 0 14px 0}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DreamAI – Playground</h1>
+
+  <div class="card">
+    <label>Texte du rêve</label><br/>
+    <textarea id="txt" placeholder="Décrivez votre rêve...">salut, j'ai vu des serpents qui me suivre des serpents noir autour de notre maison</textarea>
+    <div class="row" style="margin-top:10px">
+      <label>Langue
+        <select id="lang">
+          <option value="auto">auto</option>
+          <option value="fr" selected>fr</option>
+          <option value="en">en</option>
+        </select>
+      </label>
+      <label><input id="use_rag" type="checkbox" checked/> Utiliser RAG</label>
+      <button id="btnAnalyze">Analyser</button>
+      <button id="btnExplain">Explain (compact)</button>
+      <span id="status" class="muted">—</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Résumé / Narrative</h3>
+      <pre id="narr">—</pre>
+      <div id="chips"></div>
+    </div>
+    <div class="card">
+      <h3>Métriques</h3>
+      <pre id="metrics">—</pre>
+    </div>
+  </div>
+
+  <p class="muted">Astuce : refaites deux appels identiques d’affilée pour voir <code>cached_tokens &gt; 0</code> (prompt caching).</p>
+</div>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function showChips(words){
+  const box = $("#chips");
+  box.innerHTML = "";
+  (words || []).forEach(w=>{
+    const span = document.createElement("span");
+    span.className = "pill";
+    span.textContent = w;
+    box.appendChild(span);
+  });
+}
+
+function showMetrics({latency_ms, cached_tokens, input_tokens, model, estimated, hdr_cached, hdr_estimated}){
+  const ratio = (cached_tokens && input_tokens) ? (cached_tokens/Math.max(input_tokens,1)) : 0;
+  $("#metrics").textContent =
+`latency_ms: ${latency_ms ?? "-"}
+cached_tokens: ${cached_tokens ?? 0}
+input_tokens: ${input_tokens ?? "-"}
+cache_hit_ratio: ${ratio.toFixed(3)}
+model: ${model ?? "-"}
+estimated_tokens(client): ${estimated ?? "-"}
+X-Cached-Tokens: ${hdr_cached ?? "-"}
+X-Estimated-Tokens: ${hdr_estimated ?? "-"}`;
+}
+
+async function call(path){
+  const body = {
+    text: $("#txt").value,
+    lang: $("#lang").value,
+    use_rag: $("#use_rag").checked
+  };
+  const t0 = performance.now();
+  const res = await fetch(path, {
+    method:"POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+  const json = await res.json().catch(()=> ({}));
+  const clientLatency = Math.round(performance.now() - t0);
+
+  // headers utiles si fournis
+  const hdrCached = Number(res.headers.get("X-Cached-Tokens") || 0);
+  const hdrEst = Number(res.headers.get("X-Estimated-Tokens") || 0);
+
+  return {json, clientLatency, hdrCached, hdrEst, ok: res.ok};
+}
+
+async function onAnalyze(){
+  $("#btnAnalyze").disabled = true; $("#status").textContent = "En cours…";
+  try{
+    const {json, clientLatency, hdrCached, hdrEst, ok} = await call("/analyze");
+    $("#status").textContent = ok ? `OK en ${clientLatency} ms` : "Erreur";
+    $("#narr").textContent = json.summary || "—";
+    showChips(json.keywords || []);
+    const m = json.metrics || {};
+    showMetrics({
+      latency_ms: m.latency_ms ?? clientLatency,
+      cached_tokens: m.cached_tokens ?? 0,
+      input_tokens: m.input_tokens ?? null,
+      model: m.model,
+      estimated: json.estimated_tokens,
+      hdr_cached: hdrCached || m.cached_tokens,
+      hdr_estimated: hdrEst || json.estimated_tokens
+    });
+  }catch(e){
+    $("#status").textContent = "Erreur";
+    $("#narr").textContent = String(e);
+  }finally{
+    $("#btnAnalyze").disabled = false;
+  }
+}
+
+async function onExplain(){
+  $("#btnExplain").disabled = true; $("#status").textContent = "En cours…";
+  try{
+    const {json, clientLatency, hdrCached, hdrEst, ok} = await call("/explain/compact");
+    $("#status").textContent = ok ? `OK en ${clientLatency} ms` : "Erreur";
+    $("#narr").textContent = json.narrative || "—";
+    showChips(json.keywords || []);
+    const m = json.metrics || {};
+    showMetrics({
+      latency_ms: clientLatency,
+      cached_tokens: m.cached_tokens ?? 0,
+      input_tokens: m.input_tokens ?? null,
+      model: "-", // pas renvoyé par /compact; inutile pour la démo
+      estimated: json.estimated_tokens,
+      hdr_cached: hdrCached || m.cached_tokens,
+      hdr_estimated: hdrEst || json.estimated_tokens
+    });
+  }catch(e){
+    $("#status").textContent = "Erreur";
+    $("#narr").textContent = String(e);
+  }finally{
+    $("#btnExplain").disabled = false;
+  }
+}
+
+$("#btnAnalyze").addEventListener("click", onAnalyze);
+$("#btnExplain").addEventListener("click", onExplain);
+</script>
+</body>
+</html>

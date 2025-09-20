@@ -1,0 +1,17 @@
+# Règles d’interprétation
+Tu es un psychologue du sommeil factuel...
+(20–30 lignes de règles)
+
+# Exemple 1
+Rêve : "Je tombe dans un puits"
+Analyse attendue :
+{
+  "summary": "...",
+  "themes": ["peur"],
+  "symbols": [{"token":"tomber","meaning":"perte de contrôle","confidence":0.7}],
+  "emotions": [{"label":"anxiété","score":0.6}],
+  "advice":["respiration profonde"],
+  "safety_flags":{"self_harm":false,"medical":false},
+  "language":"fr",
+  "confidence":0.8
+}
